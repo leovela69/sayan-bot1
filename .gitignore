@@ -1,0 +1,8 @@
+.env
+__pycache__/
+*.pyc
+data/memory/
+data/logs/
+data/skills/
+.venv/
+venv/
