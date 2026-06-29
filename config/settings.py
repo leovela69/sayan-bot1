@@ -41,7 +41,7 @@ SERPAPI_KEY = os.environ.get("SERPAPI_KEY", "")
 GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN", "")
 
 # --- Server ---
-PORT = int(os.environ.get("PORT", "8080"))
+PORT = int(os.environ.get("PORT", "10000"))
 
 # Asegurar directorios
 for d in [DATA_DIR, MEMORY_DIR, SKILLS_DIR, LOGS_DIR]:

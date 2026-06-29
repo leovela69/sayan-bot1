@@ -29,22 +29,26 @@ async def main():
     print("  10 agentes | 4 capas | Circuito cerrado")
     print("=" * 50)
 
+    # API server PRIMERO — Render necesita detectar el puerto rápido
+    from src.swarm.bridge.api_server import start_api_server
+    api_runner = await start_api_server()
+    print(f"✅ Health check activo — Render puede detectar el puerto")
+
+    # El bot de Telegram corre ANTES del circuito para no bloquear
+    from config.settings import TELEGRAM_BOT_TOKEN
+    if not TELEGRAM_BOT_TOKEN:
+        print("ERROR: TELEGRAM_BOT_TOKEN no configurado")
+        # Mantener el servidor HTTP vivo para que Render no mate el proceso
+        print("⚠️ Bot sin token — solo API server activo")
+        await asyncio.Event().wait()
+        return
+
     # El circuito corre como tarea async en background
     circuit_task = asyncio.create_task(run_circuit(interval=30))
 
     # Auto-Healer corre en paralelo
     from src.swarm.skills.auto_repair.healer import healer
     healer_task = asyncio.create_task(healer.start())
-
-    # API server para el puente con el Panteón
-    from src.swarm.bridge.api_server import start_api_server
-    api_runner = await start_api_server()
-
-    # El bot de Telegram corre en el hilo principal
-    from config.settings import TELEGRAM_BOT_TOKEN
-    if not TELEGRAM_BOT_TOKEN:
-        print("ERROR: TELEGRAM_BOT_TOKEN no configurado")
-        return
 
     from telegram.ext import Application, CommandHandler, MessageHandler, filters
     from src.platforms.telegram import (
