@@ -1,0 +1,29 @@
+version: "1"
+services:
+  - type: web
+    name: sayan-bot
+    runtime: docker
+    repo: https://github.com/leovela69/sayan-bot1
+    plan: starter
+    region: ohio
+    dockerContext: .
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /health
+    autoDeployTrigger: commit
+    envVars:
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false
+      - key: OWNER_ID
+        sync: false
+      - key: OPENROUTER_API_KEY
+        sync: false
+      - key: PORT
+        value: "10000"
+      - key: LLM_MODEL
+        value: "nousresearch/hermes-4-scout"
+      - key: LLM_FALLBACK
+        value: "deepseek/deepseek-chat-v3-0324:free"
+      - key: PANTEON_API_URL
+        value: "https://c8l-bot-server.onrender.com"
+      - key: BRIDGE_SECRET
+        sync: false
