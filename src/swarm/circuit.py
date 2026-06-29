@@ -10,15 +10,37 @@ Ejecuta el ciclo de vida del enjambre:
 import asyncio
 import logging
 import time
-from src.swarm.bus.message_bus import bus
-from src.swarm.capa1_cerebro.kronos import kronos
-from src.swarm.capa4_forge.forge import forge
+from src.swarm.bus.message_bus import bus, Message
 
 logger = logging.getLogger("sayan.circuit")
 
-# Agentes activos (se irán añadiendo conforme se creen)
+# Import todos los agentes
+from src.swarm.capa1_cerebro.kronos import kronos
+from src.swarm.capa1_cerebro.cortex import cortex
+from src.swarm.capa1_cerebro.genesis import genesis
+from src.swarm.capa2_puentes.oraculo import oraculo
+from src.swarm.capa2_puentes.nexus import nexus
+from src.swarm.capa2_puentes.mirror import mirror
+from src.swarm.capa3_ejecutores.atlas import atlas
+from src.swarm.capa3_ejecutores.sentinel import sentinel
+from src.swarm.capa3_ejecutores.daemon import daemon
+from src.swarm.capa4_forge.forge import forge
+
+# Todos los agentes activos
 ACTIVE_AGENTS = {
+    # Capa 1 — Cerebro
     "KRONOS": kronos,
+    "CORTEX": cortex,
+    "GENESIS": genesis,
+    # Capa 2 — Puentes
+    "ORACULO": oraculo,
+    "NEXUS": nexus,
+    "MIRROR": mirror,
+    # Capa 3 — Ejecutores
+    "ATLAS": atlas,
+    "SENTINEL": sentinel,
+    "DAEMON": daemon,
+    # Capa 4 — Fábrica
     "FORGE": forge,
 }
 
@@ -27,32 +49,30 @@ async def run_circuit(interval: int = 30):
     """
     Bucle principal del circuito.
     Cada 'interval' segundos:
-    1. Procesa mensajes pendientes de cada agente
-    2. Ejecuta tick() de cada agente
-    3. KRONOS corre su ciclo de coordinación
+    1. DAEMON ejecuta cron jobs
+    2. Procesa mensajes pendientes de cada agente
+    3. SENTINEL escanea proactivamente
+    4. KRONOS corre ciclo de coordinación
     """
-    logger.info(f"Circuit started — {len(ACTIVE_AGENTS)} agents active")
-    logger.info(f"Agents: {list(ACTIVE_AGENTS.keys())}")
+    logger.info(f"=== SAYAN CIRCUIT ONLINE === {len(ACTIVE_AGENTS)} agents")
+    for name, agent in ACTIVE_AGENTS.items():
+        logger.info(f"  L{agent.layer} | {name:10} | {agent.role}")
 
     while True:
         try:
-            # Procesar mensajes pendientes
+            # 1. DAEMON tick (cron jobs)
+            await daemon.tick()
+
+            # 2. Procesar mensajes pendientes
             for name in list(ACTIVE_AGENTS.keys()):
                 await bus.process_queue(name)
 
-            # Tick de cada agente
-            for name, agent in ACTIVE_AGENTS.items():
-                try:
-                    await agent.tick()
-                except Exception as e:
-                    logger.error(f"Tick error for {name}: {e}")
+            # 3. SENTINEL tick (proactivo)
+            await sentinel.tick()
 
-            # Ciclo de Kronos (coordinación)
-            await kronos.process_message(
-                __import__('src.swarm.bus.message_bus', fromlist=['Message']).Message(
-                    "CIRCUIT", "KRONOS", "cycle", {"timestamp": time.time()}
-                )
-            )
+            # 4. Ciclo de KRONOS
+            cycle_msg = Message("CIRCUIT", "KRONOS", "cycle", {"timestamp": time.time()})
+            await kronos.process_message(cycle_msg)
 
         except Exception as e:
             logger.error(f"Circuit error: {e}")
@@ -61,16 +81,21 @@ async def run_circuit(interval: int = 30):
 
 
 def register_agent(name: str, agent):
-    """Registra un nuevo agente en el circuito."""
+    """Registra un nuevo agente dinámicamente."""
     ACTIVE_AGENTS[name] = agent
     logger.info(f"Agent {name} added to circuit ({len(ACTIVE_AGENTS)} total)")
 
 
 def get_circuit_status() -> dict:
-    """Estado del circuito completo."""
+    """Estado completo del circuito."""
     return {
-        "agents_count": len(ACTIVE_AGENTS),
+        "total_agents": len(ACTIVE_AGENTS),
+        "layers": {
+            "1_cerebro": ["KRONOS", "CORTEX", "GENESIS"],
+            "2_puentes": ["ORACULO", "NEXUS", "MIRROR"],
+            "3_ejecutores": ["ATLAS", "SENTINEL", "DAEMON"],
+            "4_forge": ["FORGE"]
+        },
         "agents": {name: agent.status() for name, agent in ACTIVE_AGENTS.items()},
-        "bus_pending": {name: bus.get_pending_count(name) for name in ACTIVE_AGENTS},
-        "uptime": time.time()
+        "bus_total_messages": len(bus._history)
     }
