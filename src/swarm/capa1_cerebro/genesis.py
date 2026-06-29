@@ -80,30 +80,43 @@ CÓDIGO: [si aplica, el código]"""
         return await self._propose({"proposal": content})
 
     async def _propose(self, payload: dict) -> dict:
-        """Propone una evolución y pide aprobación a Leo."""
+        """Propone una evolución. Si es sobre bots: ejecuta libre. Si es sobre proyectos: pide permiso."""
         proposal = payload.get("proposal", "")
         self.evolutions_proposed += 1
 
-        # Pedir aprobación a Leo
-        approval_id = await approvals.request_approval(
-            agent="GENESIS",
-            action="evolution",
-            description=f"Evolución #{self.evolutions_proposed}: {proposal[:200]}",
-            payload={"full_proposal": proposal}
-        )
+        # Detectar si afecta proyectos finales (webs, juegos, casino)
+        protected_keywords = ["index.html", "bonus_slot", "casino/web", "c8l_poker",
+                            "c8l_casino", "firebase", "gen-lang-client", ".web.app"]
+        affects_projects = any(kw in proposal.lower() for kw in protected_keywords)
 
-        self.evolution_log.append({
-            "id": approval_id,
-            "proposal": proposal[:300],
-            "timestamp": time.time(),
-            "status": "pending"
-        })
-
-        return {
-            "status": "awaiting_approval",
-            "approval_id": approval_id,
-            "proposal_summary": proposal[:200]
-        }
+        if affects_projects:
+            # Pedir aprobación a Leo
+            approval_id = await approvals.request_approval(
+                agent="GENESIS",
+                action="evolution_project",
+                description=f"Evolución que AFECTA PROYECTO: {proposal[:200]}",
+                payload={"full_proposal": proposal}
+            )
+            self.evolution_log.append({
+                "id": approval_id, "proposal": proposal[:300],
+                "timestamp": time.time(), "status": "pending_approval"
+            })
+            return {"status": "awaiting_approval", "approval_id": approval_id}
+        else:
+            # LIBRE: evolucionar bots, skills, enjambres sin permiso
+            self.evolutions_approved += 1
+            self.evolution_log.append({
+                "id": f"auto_{self.evolutions_proposed}",
+                "proposal": proposal[:300],
+                "timestamp": time.time(), "status": "auto_approved"
+            })
+            # Ejecutar la evolución directamente
+            await self.send("FORGE", "create_servant", {
+                "type": "generate",
+                "spec": proposal,
+                "auto_approved": True
+            })
+            return {"status": "auto_approved", "executing": True, "proposal": proposal[:200]}
 
     async def _propose_new_agent(self, payload: dict) -> dict:
         """Propone crear un nuevo agente en el enjambre."""

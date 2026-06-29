@@ -132,29 +132,30 @@ class Forge(BaseAgent):
         task_type = payload.get("type", "generic")
         priority = payload.get("priority", "normal")
 
-        # Si es reparación del Panteón → pedir aprobación a Leo
-        if task_type == "repair" and payload.get("affects_panteon", False):
+        # PERMISOS:
+        # - Evolucionar bots (Panteón o Sayan): LIBRE, sin aprobación
+        # - Tocar webs/juegos/proyectos finales: REQUIERE aprobación de Leo
+        affects_projects = payload.get("affects_projects", False)  # webs, juegos, casino
+        
+        if affects_projects:
             approval_id = await approvals.request_approval(
                 agent="FORGE",
-                action=f"repair_{payload.get('target_agent', 'unknown')}",
-                description=f"Reparar {payload.get('target_agent')} del Panteón: {payload.get('error', '')}",
+                action=f"modify_project_{payload.get('target', 'unknown')}",
+                description=f"Modificar proyecto: {payload.get('description', '')}",
                 payload=payload
             )
-            # No ejecutar hasta que Leo apruebe
             return {"status": "awaiting_approval", "approval_id": approval_id}
 
-        # Crear sirviente
+        # Todo lo demás (evolucionar bots, añadir skills, crear agentes): EJECUTAR LIBRE
         self.servants_created += 1
         servant_id = f"srv_{self.servants_created}_{int(time.time())}"
         servant = Servant(servant_id, task_type, payload)
 
         self.servants_active.append(servant)
-        self.logger.info(f"Servant created: {servant_id} (type: {task_type})")
+        self.logger.info(f"Servant created (FREE): {servant_id} (type: {task_type})")
 
-        # Ejecutar (async, no bloquea)
         result = await servant.execute()
 
-        # Mover a completados
         self.servants_active.remove(servant)
         self.servants_completed.append({
             "id": servant_id,
@@ -163,7 +164,6 @@ class Forge(BaseAgent):
             "duration": time.time() - servant.created_at
         })
 
-        # Limpiar completados viejos (max 100)
         if len(self.servants_completed) > 100:
             self.servants_completed = self.servants_completed[-100:]
 
