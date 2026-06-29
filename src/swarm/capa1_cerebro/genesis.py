@@ -110,12 +110,41 @@ CÓDIGO: [si aplica, el código]"""
                 "proposal": proposal[:300],
                 "timestamp": time.time(), "status": "auto_approved"
             })
-            # Ejecutar la evolución directamente
-            await self.send("FORGE", "create_servant", {
-                "type": "generate",
-                "spec": proposal,
-                "auto_approved": True
-            })
+            # Ejecutar la evolución: detectar si es skill nuevo o evolución de código
+            if any(kw in proposal.lower() for kw in ["nuevo skill", "new skill", "crear skill",
+                                                       "create skill", "añadir herramienta"]):
+                # Crear skill real
+                await self.send("FORGE", "create_servant", {
+                    "type": "create_skill",
+                    "name": self._extract_skill_name(proposal),
+                    "description": proposal,
+                    "spec": proposal,
+                    "auto_approved": True
+                })
+            elif any(kw in proposal.lower() for kw in ["mejorar", "optimizar", "evolucionar",
+                                                         "refactorizar", "fix", "arreglar"]):
+                # Evolucionar código existente
+                file_path = self._extract_file_path(proposal)
+                if file_path:
+                    await self.send("FORGE", "create_servant", {
+                        "type": "evolve_code",
+                        "file": file_path,
+                        "instruction": proposal,
+                        "auto_approved": True
+                    })
+                else:
+                    await self.send("FORGE", "create_servant", {
+                        "type": "generate",
+                        "spec": proposal,
+                        "auto_approved": True
+                    })
+            else:
+                # Default: sirviente generador
+                await self.send("FORGE", "create_servant", {
+                    "type": "generate",
+                    "spec": proposal,
+                    "auto_approved": True
+                })
             return {"status": "auto_approved", "executing": True, "proposal": proposal[:200]}
 
     async def _propose_new_agent(self, payload: dict) -> dict:
@@ -173,6 +202,34 @@ CÓDIGO BASE: [esqueleto Python de la clase]"""
         # Solo cada 10 ciclos para no saturar
         if self.tasks_completed % 10 == 0 and self.tasks_completed > 0:
             await self._check_patterns()
+
+    def _extract_skill_name(self, proposal: str) -> str:
+        """Extrae nombre de skill de una propuesta."""
+        # Buscar patrones como "skill: nombre" o "llamado nombre"
+        import re
+        patterns = [
+            r'skill[:\s]+["\']?(\w+)',
+            r'llamad[oa]\s+["\']?(\w+)',
+            r'nombre[:\s]+["\']?(\w+)',
+        ]
+        for pattern in patterns:
+            match = re.search(pattern, proposal.lower())
+            if match:
+                return match.group(1)
+        # Fallback: generar nombre del timestamp
+        return f"auto_skill_{int(time.time())}"
+
+    def _extract_file_path(self, proposal: str) -> str:
+        """Extrae path de archivo de una propuesta."""
+        import re
+        # Buscar paths como src/algo/algo.py
+        match = re.search(r'(src/[\w/]+\.py)', proposal)
+        if match:
+            return match.group(1)
+        match = re.search(r'([\w/]+\.py)', proposal)
+        if match:
+            return match.group(1)
+        return ""
 
 
 # Singleton
