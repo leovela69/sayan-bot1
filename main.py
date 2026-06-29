@@ -32,6 +32,10 @@ async def main():
     # El circuito corre como tarea async en background
     circuit_task = asyncio.create_task(run_circuit(interval=30))
 
+    # API server para el puente con el Panteón
+    from src.swarm.bridge.api_server import start_api_server
+    api_runner = await start_api_server()
+
     # El bot de Telegram corre en el hilo principal
     from config.settings import TELEGRAM_BOT_TOKEN
     if not TELEGRAM_BOT_TOKEN:
