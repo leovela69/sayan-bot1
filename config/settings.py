@@ -19,7 +19,7 @@ if os.path.exists(_env_path):
                     os.environ[_key] = _val
 
 # --- Telegram ---
-TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "")
+TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "8957745715:AAFVP_TLgGWNuV9LVQQWyTmuL5ULffVHDec")
 OWNER_ID = int(os.environ.get("OWNER_ID", "0"))
 BOT_NAME = os.environ.get("BOT_NAME", "Sayanyin_Bot")
 
