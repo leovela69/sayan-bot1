@@ -157,3 +157,44 @@ async def cmd_atlas(update: Update, context: ContextTypes.DEFAULT_TYPE):
         txt += f"[{r['category']}] {r['data'][:100]}\n\n"
 
     await update.message.reply_text(txt[:4000])
+
+
+
+@owner_only
+async def cmd_healer(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """/healer — Estado del auto-reparador."""
+    from src.swarm.skills.auto_repair.healer import healer
+
+    args = context.args
+    if args and args[0] == "check":
+        # Forzar chequeo
+        health = healer._check_health()
+        issues = healer._diagnose(health)
+        txt = f"HEALTH CHECK FORZADO:\n\n"
+        txt += f"Memoria: {health['memory_mb']:.0f} MB\n"
+        txt += f"Errores/min: {health['error_rate']}\n"
+        txt += f"Bus: {'OK' if health['bus_alive'] else 'MUERTO'}\n"
+        txt += f"Brain: {'OK' if health['brain_alive'] else 'MUERTO'}\n"
+        txt += f"Agentes: {'OK' if health['agents_alive'] else 'PROBLEMAS'}\n\n"
+        if issues:
+            txt += f"PROBLEMAS ({len(issues)}):\n"
+            for i in issues:
+                txt += f"  - {i['type']} ({i.get('severity', '?')})\n"
+        else:
+            txt += "Sin problemas detectados."
+        await update.message.reply_text(txt)
+        return
+
+    status = healer.get_status()
+    txt = f"AUTO-HEALER\n\n"
+    txt += f"Estado: {'ACTIVO' if status['running'] else 'INACTIVO'}\n"
+    txt += f"Errores/min: {status['errors_last_minute']}\n"
+    txt += f"Reparaciones totales: {status['total_repairs']}\n\n"
+
+    if status['last_5_repairs']:
+        txt += "Últimas reparaciones:\n"
+        for r in status['last_5_repairs']:
+            txt += f"  {r['issue']['type']} → {r['action']} → {'OK' if r['verified'] else 'FAIL'}\n"
+
+    txt += f"\n/healer check — Forzar chequeo"
+    await update.message.reply_text(txt)

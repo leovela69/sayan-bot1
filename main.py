@@ -32,6 +32,10 @@ async def main():
     # El circuito corre como tarea async en background
     circuit_task = asyncio.create_task(run_circuit(interval=30))
 
+    # Auto-Healer corre en paralelo
+    from src.swarm.skills.auto_repair.healer import healer
+    healer_task = asyncio.create_task(healer.start())
+
     # API server para el puente con el Panteón
     from src.swarm.bridge.api_server import start_api_server
     api_runner = await start_api_server()
@@ -60,7 +64,7 @@ async def main():
     # Comandos del enjambre
     from src.platforms.swarm_commands import (
         cmd_swarm, cmd_aprobar, cmd_rechazar, cmd_evoluciones,
-        cmd_agentes, cmd_forge, cmd_atlas
+        cmd_agentes, cmd_forge, cmd_atlas, cmd_healer
     )
     app.add_handler(CommandHandler("swarm", cmd_swarm))
     app.add_handler(CommandHandler("aprobar", cmd_aprobar))
@@ -69,6 +73,7 @@ async def main():
     app.add_handler(CommandHandler("agentes", cmd_agentes))
     app.add_handler(CommandHandler("forge", cmd_forge))
     app.add_handler(CommandHandler("atlas", cmd_atlas))
+    app.add_handler(CommandHandler("healer", cmd_healer))
 
     # Mensajes normales
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
