@@ -36,6 +36,8 @@ async def main():
 
     # El bot de Telegram corre ANTES del circuito para no bloquear
     from config.settings import TELEGRAM_BOT_TOKEN
+    print(f"🔑 Token check: {'SÍ configurado' if TELEGRAM_BOT_TOKEN else 'NO configurado'} (len={len(TELEGRAM_BOT_TOKEN)})")
+    
     if not TELEGRAM_BOT_TOKEN:
         print("ERROR: TELEGRAM_BOT_TOKEN no configurado")
         # Mantener el servidor HTTP vivo para que Render no mate el proceso
